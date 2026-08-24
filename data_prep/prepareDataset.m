@@ -93,6 +93,15 @@ function [trainDS, valDS, testDS] = prepareDataset(idridRootPath)
     summary(imds.Labels)
 
     % ---- Split ----
+    % Fixed seed so the train/val/test split is reproducible across runs —
+    % without this, re-running prepareDataset (e.g. for evaluation after
+    % training) silently draws a DIFFERENT random split each time, so the
+    % "test" set used for evaluation is not guaranteed to be disjoint from
+    % what the model actually trained/validated on. That's a real
+    % train/test leakage risk, not cosmetic, given this PS's validation-
+    % rigor requirement.
+    rng(42);
+
     % Very small dataset (~20 images total per prior discussion) — a
     % stratified 70/15/15 split per class will likely fail (some classes
     % may have only 3-4 images total). Fall back gracefully if so.
