@@ -1,43 +1,71 @@
-# SIH26038 — 12-Hour Prototype Build
+# SIH26038 — Diabetic Retinopathy Screening Pipeline
 
-**Goal:** demonstrate the full pipeline works end-to-end, not hit 90%/85% accuracy targets.
-That target is for the MVP phase; this prototype exists to get through the PPT round by
-proving feasibility.
+MATLAB-based, explainable AI pipeline for automated diabetic retinopathy (DR) screening in
+primary healthcare settings. Built for **Smart India Hackathon 2026**, Problem Statement
+**SIH26038** (sponsor: MathWorks).
 
-## How this project was assembled
+## Results
 
-- Classical image-processing scripts (Stage 1) were written directly — MATLAB's Image
-  Processing Toolbox functions used here (`adapthisteq`, `imfilter`, `entropy`, etc.) have
-  stable, long-established syntax, low risk of being wrong.
-- The classifier training script (Stage 3) and Grad-CAM script (Stage 4) are **skeletons
-  based on MathWorks' own official example**, not written from scratch — adapt them
-  side-by-side with the live reference page rather than trusting this code blindly:
-  https://www.mathworks.com/help/medical-imaging/ug/multilabel-diabetic-retinopathy-fundus-image-classification-using-deep-learning.html
-- **Run everything through Claude Code in VSCode, not by hand.** It can execute
-  `matlab -batch "script"` against your actual license and fix real errors — much faster
-  than debugging blind. Point it at this folder and the MathWorks example link above.
-- Stage 5 (Simulink) has no code file — it's a graphical block diagram. See
-  `stage5_simulink/SIMULINK_SPEC.md` for exactly what to build.
+Evaluated on a seeded, verified-disjoint 77-image held-out test set (IDRiD):
 
-## Suggested 12-hour order (adjust as you go — this is a plan, not a script)
+- 5-class exact accuracy: **54.5%**
+- Quadratic Weighted Kappa: **0.693**
+- Referable-DR (Grade 2+) sensitivity: **75.0%**
+- Referable-DR (Grade 2+) specificity: **93.1%**
 
-| Hours | Task |
-|---|---|
-| 0–1 | Verify MATLAB + toolboxes run, point `data_prep/prepareDataset.m` at your local IDRiD/APTOS paths, run it |
-| 1–3 | Stage 1: run/tune `stage1_quality/*.m` on a handful of images, sanity-check CLAHE output visually |
-| 3–7 | Stage 3: adapt `stage3_classifier/trainDRClassifier.m` against the MathWorks example, fine-tune on a subset (don't aim for convergence — even a few epochs showing the loss curve trending down is enough to prove the pipeline works) |
-| 7–8 | Stage 4: Grad-CAM on your trained net (`stage4_explainability/generateGradCAM.m`) |
-| 8–9 | Stage 2 (simplified): classical optic-disc/vessel detection — see note in that folder; skip deep-learning segmentation, not worth the time for a feasibility demo |
-| 9–10 | Stage 5: build the Simulink block diagram per the spec |
-| 10–11 | `demo/runDemoPipeline.m` — chain everything on 2-3 sample images, produce the annotated report |
-| 11–12 | Buffer / record screen capture for the PPT |
+## Pipeline Status
 
-## What "solid prototype" means here, concretely
+| Stage | Status | Notes |
+|---|---|---|
+| 1 — Image Quality Assessment | ✅ Built & Verified | CLAHE enhancement, accept/reject gate; calibrated and negative-control tested |
+| 2 — Structure Segmentation | ⚠️ Simplified | Classical CV for speed; trained U-Net segmentation planned for MVP |
+| 3 — DR Severity Grading | ✅ Built, Trained & Evaluated | SqueezeNet transfer learning, verified disjoint test set |
+| 4 — Explainability (Grad-CAM) | ✅ Built & Verified* | Real attention maps confirmed on real predictions; visual rendering polish in progress |
+| 5 — Simulink Workflow Simulation | ✅ Built & Simulated | 100,000-patient stress-test |
 
-- One real trained classifier checkpoint (even mediocre accuracy) — not a mock
-- One real Grad-CAM heatmap on a real prediction
-- One real quality-gate accept/reject decision shown on a good vs. bad image
-- One real Simulink model you can adjust parameters on live
-- Chained together on at least one sample end-to-end
+## Repository Structure
 
-That's what proves feasibility to judges — not accuracy numbers.
+```
+SIH26/
+├── README.md
+├── trainedDRNet.mat                    (final trained model — seeded, disjoint split)
+├── data_prep/
+│   └── prepareDataset.m                (IDRiD loading, seeded train/val/test split)
+├── stage1_quality/
+│   ├── assessImageQuality.m            (quality gate)
+│   └── enhanceImage.m                  (CLAHE enhancement)
+├── stage3_classifier/
+│   ├── trainDRClassifier.m
+│   ├── evaluateClassifier.m
+│   ├── runRetrainWithSeed.m
+│   └── splitFileLists.mat              (exact, verified train/val/test file lists)
+├── stage4_explainability/
+│   └── generateGradCAM.m
+├── stage5_simulink/
+│   └── (Simulink model + simulation outputs)
+└── demo/
+    └── runDemoPipeline.m               (end-to-end demo: Stage 1 → 3 → 4)
+```
+
+## Getting Started
+
+**Requirements:** MATLAB with Image Processing Toolbox, Computer Vision Toolbox, Deep
+Learning Toolbox, Medical Imaging Toolbox, Simulink, and Statistics and Machine Learning
+Toolbox.
+
+```matlab
+addpath(genpath('path/to/SIH26'))
+load('path/to/SIH26/trainedDRNet.mat')     % loads variable `net`
+sampleImg = 'path/to/an/IDRiD/visualization.png';
+runDemoPipeline(sampleImg, net)
+```
+
+This prints the quality-gate decision, predicted ICDR grade, confidence, and referable-DR
+flag, and displays a 3-panel figure (original / enhanced / Grad-CAM overlay).
+
+
+## Status
+
+Built as a feasibility prototype for the SIH26038 PPT round. Full MVP-phase work (trained
+segmentation, stronger backbone, sensitivity-focused loss tuning, extended training) is
+scoped and pending.
